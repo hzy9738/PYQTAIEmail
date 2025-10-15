@@ -1,0 +1,8 @@
+{
+  "email_accounts": [],
+  "auto_reply": {
+    "enabled": false,
+    "reply_content": "感谢您的来信,我会尽快回复。"
+  },
+  "scheduled_tasks": []
+}
