@@ -25,3 +25,4 @@ config.json
 venv/
 env/
 .venv
+.idea/
