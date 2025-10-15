@@ -1,3 +1,4 @@
 PyQt5==5.15.9
 schedule==1.2.0
 cryptography==41.0.7
+pyinstaller==6.3.0
