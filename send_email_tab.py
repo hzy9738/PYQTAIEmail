@@ -175,7 +175,7 @@ class SendEmailTab(QWidget):
         text_layout = QVBoxLayout(text_widget)
         self.content_input = QTextEdit()
         self.content_input.setPlaceholderText("请输入邮件正文")
-        self.content_input.setMinimumHeight(200)
+        self.content_input.setMinimumHeight(300)  # 增大内容框高度
         text_layout.addWidget(self.content_input)
 
         # Python脚本标签页
@@ -246,6 +246,9 @@ class SendEmailTab(QWidget):
         self.text_mode_radio.toggled.connect(lambda checked: self.content_tabs.setCurrentIndex(0) if checked else None)
         self.script_mode_radio.toggled.connect(lambda checked: self.content_tabs.setCurrentIndex(1) if checked else None)
 
+        # 根据标签页切换单选按钮（双向同步）
+        self.content_tabs.currentChanged.connect(self.on_content_tab_changed)
+
         content_layout.addWidget(self.content_tabs)
 
         content_group.setLayout(content_layout)
@@ -265,7 +268,7 @@ class SendEmailTab(QWidget):
         attachment_layout = QVBoxLayout()
 
         self.attachment_list = QListWidget()
-        self.attachment_list.setMaximumHeight(80)
+        self.attachment_list.setMaximumHeight(60)  # 减小附件框高度
         attachment_layout.addWidget(self.attachment_list)
 
         attachment_btn_layout = QHBoxLayout()
@@ -333,6 +336,13 @@ class SendEmailTab(QWidget):
 
         # 加载账号
         self.refresh_accounts()
+
+    def on_content_tab_changed(self, index):
+        """标签页切换时同步单选按钮"""
+        if index == 0:
+            self.text_mode_radio.setChecked(True)
+        elif index == 1:
+            self.script_mode_radio.setChecked(True)
 
     def refresh_accounts(self):
         """刷新账号列表"""

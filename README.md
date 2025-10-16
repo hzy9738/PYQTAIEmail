@@ -14,18 +14,22 @@
 - ✅ **HTML邮件**: 支持HTML格式的邮件内容
 - ✅ **系统托盘**: 支持最小化到系统托盘后台运行
 
-## 系统��求
+## 系统要求
 
 - **操作系统**: Windows 10 或更高版本
-- **Python版本**: Python 3.7 或更高版本
+- **Python版本**: Python 3.12 或更高版本（开发环境）
 - **网络**: 需要联网访问邮件服务器
+- **可执行文件**: 无需Python环境，直接运行
 
 ## 安装部署
 
 ### 方式一: 使用可执行文件(推荐)
 
-1. 下载最新的 `EmailService.exe` 可执行文件
+1. 下载最新的 `寻拟邮件工具.exe` 可执行文件
 2. 双击运行即可使用
+3. ✅ 无需安装Python环境
+4. ✅ 已内置所有依赖库（pandas、numpy、openpyxl等）
+5. ✅ 开箱即用
 
 ### 方式二: 从源码安装
 
@@ -42,7 +46,7 @@
 
 ```bash
 git clone <项目地址>
-cd PYQTAIEmail
+cd AIEmail
 ```
 
 #### 步骤3: 安装依赖
@@ -64,13 +68,20 @@ python main.py
 
 ### 方式三: 打包成可执行文件
 
-在Windows系统上运行打包脚本:
+使用 PyInstaller 打包:
 
 ```bash
-build.bat
+# 清理旧的构建文件
+python -m PyInstaller build.spec --clean
 ```
 
-打包完成后，可执行文件位于 `dist/EmailService.exe`
+打包完成后，可执行文件位于 `dist/寻拟邮件工具.exe`
+
+**打包说明**:
+- 使用了优化的 build.spec 配置
+- 已解决 numpy 2.x 的 CPU dispatcher 问题
+- 包含了完整的 Python 脚本执行环境
+- 支持用户脚本使用 pandas、numpy、openpyxl 等库
 
 ## 使用教程
 
@@ -125,28 +136,37 @@ build.bat
 - 🔄 根据复杂逻辑动态生成个性化邮件
 
 **内置Python环境**:
-- ✅ 打包版本已内置Python运行时
-- ✅ 已集成pandas、openpyxl、numpy等常用库
-- ✅ 无需本地Python环境,开箱即用
+- ✅ 打包版本已内置Python 3.12运行时
+- ✅ 已集成pandas、numpy、openpyxl、xlrd、xlwt等常用数据处理库
+- ✅ 无需本地Python环境，开箱即用
+- ✅ 脚本中可直接使用 `numpy`、`np`、`pandas`、`pd` 等模块（无需import）
 
 **使用方法**:
-1. 选择"Python脚本"模式
-2. 在脚本编辑器中编写Python代码
-3. 可以从模板库选择示例模板
-4. 点击"测试脚本"验证脚本是否正常
-5. 确认无误后发送邮件
+1. 在"发送邮件"页面选择"Python脚本"单选按钮
+2. 在脚本编辑器中编写Python代码（或点击标签页切换）
+3. 可以从脚本模板下拉框选择内置示例模板
+4. 点击"测试脚本"按钮验证脚本是否正常运行
+5. 确认无误后点击"立即发送"
+6. 💡 提示：单选按钮与标签页已双向同步，点击任一即可切换
 
 **脚本示例**:
 ```python
-# 读取Excel文件生成报表
-import pandas as pd
-from datetime import datetime
+# 注意：打包版本中 numpy、pandas 等模块已预加载，可直接使用无需 import
+# 如果是源码运行，则需要 import
 
+# 读取Excel文件生成报表
 def generate_content():
+    # pd 和 datetime 已预加载，可直接使用
     df = pd.read_excel(r"C:\data\sales.xlsx")
     content = f"销售报表 {datetime.now()}\n\n"
     content += df.head().to_string()
     return content
+
+# 或者使用 print 输出
+# print("邮件内容")
+
+# 或者定义 result 变量
+# result = "邮件内容"
 ```
 
 **详细文档**: 查看 [SCRIPT_GUIDE.md](SCRIPT_GUIDE.md) 获取完整使用指南
@@ -182,11 +202,11 @@ def generate_content():
 **自动回复工作流程**:
 - 定期检查收件箱的未读邮件
 - 对每封新邮件自动发送回复
-- 记录已回复邮件,避免重复回复
+- 记录已回复邮件，避免重复回复
 - 可随时停止自动回复
 
 **注意事项**:
-- 自动回复会持��运行直到手动停止
+- 自动回复会持续运行直到手动停止
 - 建议程序保持运行状态
 - 可以最小化到系统托盘后台运行
 - 检查间隔不要设置太短,避免频繁访问服务器
@@ -200,11 +220,24 @@ def generate_content():
 
 ## 常见问题
 
-### Q1: 提示"认证失败,请检查邮箱和授权码"
+### Q1: 提示"认证失败，请检查邮箱和授权码"
 
-- 确认使用的是授权码,而不是邮箱登录密码
-- 确认授权码输入正确,没有多余空格
+- 确认使用的是授权码，而不是邮箱登录密码
+- 确认授权码输入正确，没有多余空格
 - 确认已在163邮箱开启IMAP/SMTP服务
+
+### Q6: Python脚本执行失败
+
+**常见原因**:
+1. **语法错误**: 使用"测试脚本"功能检查语法
+2. **文件路径错误**: 使用原始字符串 `r"C:\path\file.xlsx"` 或双反斜杠 `"C:\\path\\file.xlsx"`
+3. **文件不存在**: 确认文件路径正确且文件存在
+4. **模块问题**: 打包版本已预加载 numpy、pandas 等，可直接使用
+
+**调试技巧**:
+- 先点击"测试脚本"查看输出和错误信息
+- 检查脚本中的文件路径是否正确
+- 确保使用了 `generate_content()` 函数或 `result` 变量或 `print()` 输出
 
 ### Q2: 发送邮件失败
 
@@ -235,33 +268,44 @@ def generate_content():
 
 ## 技术架构
 
-- **界面框架**: PyQt5
-- **邮件发送**: smtplib (SMTP SSL)
-- **邮件接收**: imaplib (IMAP SSL)
+- **界面框架**: PyQt5 5.15.x
+- **邮件发送**: smtplib (SMTP SSL on port 465)
+- **邮件接收**: imaplib (IMAP SSL on port 993)
 - **任务调度**: schedule
 - **配置加密**: cryptography (Fernet)
-- **打包工具**: PyInstaller
+- **数据处理**: pandas 2.x, numpy 2.3.x, openpyxl
+- **脚本执行**: 内置 Python 3.12 解释器
+- **打包工具**: PyInstaller 6.3.0
+
+**关键技术点**:
+- ✅ 解决了 numpy 2.x 的 CPU dispatcher 重复初始化问题
+- ✅ 实现了脚本执行器的模块预加载机制
+- ✅ 使用 PyInstaller 的 runtime hooks 优化依赖加载
+- ✅ 双向同步的 UI 组件交互
 
 ## 项目结构
 
 ```
-PYQTAIEmail/
+AIEmail/
 ├── main.py                 # 程序入口
 ├── main_window.py          # 主窗口
 ├── account_tab.py          # 账号管理标签页
 ├── send_email_tab.py       # 发送邮件标签页
 ├── schedule_tab.py         # 定时任务标签页
 ├── auto_reply_tab.py       # 自动回复标签页
-├── config_manager.py       # 配置管理
-├── email_sender.py         # 邮件发送模块
+├── config_manager.py       # 配置管理（加密存储）
+├── email_sender.py         # 邮件发送模块（支持批量发送）
 ├── auto_reply.py           # 自动回复模块
 ├── task_scheduler.py       # 任务调度模块
-├── script_executor.py      # Python脚本执行器(新)
+├── script_executor.py      # Python脚本执行器（模块预加载）
+├── hook-numpy.py           # PyInstaller numpy runtime hook
 ├── requirements.txt        # 依赖包列表
-├── build.spec             # PyInstaller配置
-├── build.bat              # Windows打包脚本
-├── README.md              # 说明文档
-└── SCRIPT_GUIDE.md        # Python脚本使用指南(新)
+├── build.spec              # PyInstaller配置（优化）
+├── icon.ico                # 应用程序图标
+├── README.md               # 说明文档
+├── SCRIPT_GUIDE.md         # Python脚本使用指南
+└── .claude/                # Claude Code配置目录
+    └── problem.md          # 问题追踪文档
 ```
 
 ## 注意事项
@@ -278,8 +322,8 @@ PYQTAIEmail/
 
 3. **网络要求**
    - 需要稳定的网络连接
-   - 确保防火���允许程序访问网络
-   - SMTP使用465端口,IMAP使用993端口
+   - 确保防火墙允许程序访问网络
+   - SMTP使用465端口，IMAP使用993端口
 
 4. **资源占用**
    - 程序占用内存较少
@@ -294,6 +338,27 @@ MIT License
 
 如有问题或建议,请提交Issue。
 
+## 版本历史
+
+### v2.0.0 (当前版本)
+- ✨ 新增 Python 脚本功能，支持动态生成邮件内容
+- ✨ 内置脚本模板库（Excel、CSV、文本文件读取等）
+- 🐛 修复 numpy 2.x CPU dispatcher 重复初始化问题
+- 🐛 修复脚本执行器的依赖加载问题
+- 🎨 优化 UI 布局（内容框和附件框大小调整）
+- 🎨 修复单选按钮与标签页的双向同步
+- 📦 优化 PyInstaller 打包配置
+- 🔧 添加 numpy runtime hook
+- 🔧 实现模块预加载机制
+
+### v1.0.0
+- 🎉 首次发布
+- ✅ 支持163邮箱账号管理
+- ✅ 支持群发邮件
+- ✅ 支持定时任务
+- ✅ 支持自动回复
+- ✅ 系统托盘支持
+
 ---
 
-**免责声明**: 本软件仅供学习和个人使用,请遵守相关法律法规,不得用于发送垃圾邮件等违法行为。
+**免责声明**: 本软件仅供学习和个人使用，请遵守相关法律法规，不得用于发送垃圾邮件等违法行为。

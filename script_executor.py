@@ -6,8 +6,10 @@ Python脚本执行器模块
 """
 
 import sys
+import os
 import io
 import traceback
+import importlib
 from typing import Dict, Any
 
 
@@ -17,6 +19,48 @@ class ScriptExecutor:
     def __init__(self):
         """初始化执行器"""
         self.last_error = None
+        self._modules_cache = {}
+        # 预先导入常用模块，避免 numpy 2.x 的 CPU dispatcher 重复初始化问题
+        self._preload_modules()
+
+    def _preload_modules(self):
+        """
+        预先加载常用模块到缓存
+        这样可以避免在 exec() 中重复导入导致的 numpy CPU dispatcher 错误
+        """
+        # 在 PyInstaller 环境中，切换工作目录以避免导入冲突
+        original_dir = None
+        if hasattr(sys, '_MEIPASS'):
+            original_dir = os.getcwd()
+            # 切换到临时解压目录，避免 numpy 导入错误
+            os.chdir(sys._MEIPASS)
+
+        try:
+            # 预先导入常用模块
+            import numpy
+            import pandas
+            import os as os_module
+            from datetime import datetime, timedelta
+
+            # 缓存常用模块
+            self._modules_cache = {
+                'numpy': numpy,
+                'np': numpy,
+                'pandas': pandas,
+                'pd': pandas,
+                'os': os_module,
+                'datetime': datetime,
+                'timedelta': timedelta,
+            }
+        except Exception as e:
+            # 如果导入失败，记录但不中断
+            print(f"Warning: Failed to preload modules: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            # 恢复原始工作目录
+            if original_dir:
+                os.chdir(original_dir)
 
     def execute_script(self, script_code: str, context: Dict[str, Any] = None) -> tuple:
         """
@@ -36,11 +80,14 @@ class ScriptExecutor:
         if context is None:
             context = {}
 
-        # 添加常用模块到执行环境
+        # 添加常用模块到执行环境（使用预加载的模块，避免重复导入）
         exec_globals = {
             '__builtins__': __builtins__,
             'context': context,  # 用户可以通过context访问传入的变量
         }
+
+        # 将预加载的模块添加到执行环境
+        exec_globals.update(self._modules_cache)
 
         # 捕获标准输出
         old_stdout = sys.stdout
