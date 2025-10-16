@@ -36,8 +36,14 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         """初始化UI"""
-        self.setWindowTitle("自动化邮件服务系统")
+        self.setWindowTitle("寻拟邮件工具")
         self.setGeometry(100, 100, 1000, 700)
+
+        # 设置窗口图标
+        import os
+        icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
         # 中央部件
         central_widget = QWidget()
@@ -47,7 +53,7 @@ class MainWindow(QMainWindow):
         main_layout = QVBoxLayout(central_widget)
 
         # 标题
-        title_label = QLabel("📧 自动化邮件服务系统")
+        title_label = QLabel("📧 寻拟邮件工具")
         title_label.setStyleSheet("""
             QLabel {
                 font-size: 24px;
@@ -99,6 +105,14 @@ class MainWindow(QMainWindow):
         """设置系统托盘"""
         self.tray_icon = QSystemTrayIcon(self)
 
+        # 设置托盘图标
+        import os
+        icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
+        if os.path.exists(icon_path):
+            self.tray_icon.setIcon(QIcon(icon_path))
+
+        self.tray_icon.setToolTip("寻拟邮件工具")
+
         # 创建托盘菜单
         tray_menu = QMenu()
 
@@ -124,7 +138,7 @@ class MainWindow(QMainWindow):
         if self.tray_icon.isVisible():
             self.hide()
             self.tray_icon.showMessage(
-                "自动化邮件服务",
+                "寻拟邮件工具",
                 "程序已最小化到系统托盘",
                 QSystemTrayIcon.Information,
                 2000

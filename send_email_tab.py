@@ -8,9 +8,12 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                             QLabel, QLineEdit, QTextEdit, QComboBox,
                             QMessageBox, QGroupBox, QFormLayout, QCheckBox,
-                            QFileDialog, QListWidget, QProgressDialog)
+                            QFileDialog, QListWidget, QProgressDialog, QTabWidget,
+                            QRadioButton, QButtonGroup)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QFont
 from email_sender import EmailSender, BulkEmailSender
+from script_executor import ScriptExecutor, ScriptTemplate
 
 
 class SendEmailWorker(QThread):
@@ -56,6 +59,7 @@ class SendEmailTab(QWidget):
         self.main_window = main_window
         self.attachments = []
         self.worker = None
+        self.script_executor = ScriptExecutor()
         self.init_ui()
 
     def init_ui(self):
@@ -131,22 +135,118 @@ class SendEmailTab(QWidget):
                 padding-top: 10px;
             }
         """)
-        content_layout = QFormLayout()
+        content_layout = QVBoxLayout()
 
         # 主题
+        subject_layout = QHBoxLayout()
+        subject_layout.addWidget(QLabel("主题:"))
         self.subject_input = QLineEdit()
         self.subject_input.setPlaceholderText("请输入邮件主题")
-        content_layout.addRow("主题:", self.subject_input)
+        subject_layout.addWidget(self.subject_input)
+        content_layout.addLayout(subject_layout)
 
-        # 正文
+        # 内容模式选择
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel("内容模式:"))
+
+        self.mode_group = QButtonGroup()
+        self.text_mode_radio = QRadioButton("普通文本")
+        self.script_mode_radio = QRadioButton("Python脚本")
+        self.text_mode_radio.setChecked(True)
+
+        self.mode_group.addButton(self.text_mode_radio)
+        self.mode_group.addButton(self.script_mode_radio)
+
+        mode_layout.addWidget(self.text_mode_radio)
+        mode_layout.addWidget(self.script_mode_radio)
+        mode_layout.addStretch()
+
+        # HTML格式复选框
+        self.html_checkbox = QCheckBox("使用HTML格式")
+        mode_layout.addWidget(self.html_checkbox)
+
+        content_layout.addLayout(mode_layout)
+
+        # 内容标签页(普通文本/脚本)
+        self.content_tabs = QTabWidget()
+
+        # 普通文本标签页
+        text_widget = QWidget()
+        text_layout = QVBoxLayout(text_widget)
         self.content_input = QTextEdit()
         self.content_input.setPlaceholderText("请输入邮件正文")
         self.content_input.setMinimumHeight(200)
-        content_layout.addRow("正文:", self.content_input)
+        text_layout.addWidget(self.content_input)
 
-        # HTML格式
-        self.html_checkbox = QCheckBox("使用HTML格式")
-        content_layout.addRow("", self.html_checkbox)
+        # Python脚本标签页
+        script_widget = QWidget()
+        script_layout = QVBoxLayout(script_widget)
+
+        # 脚本模板选择
+        template_layout = QHBoxLayout()
+        template_layout.addWidget(QLabel("脚本模板:"))
+        self.template_combo = QComboBox()
+        self.template_combo.addItem("-- 选择模板 --", "")
+        for template in ScriptTemplate.get_template_list():
+            self.template_combo.addItem(template["name"], template)
+        self.template_combo.currentIndexChanged.connect(self.load_template)
+        template_layout.addWidget(self.template_combo, 1)
+
+        # 测试脚本按钮
+        test_script_btn = QPushButton("测试脚本")
+        test_script_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f39c12;
+                color: white;
+                padding: 5px 15px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #e67e22;
+            }
+        """)
+        test_script_btn.clicked.connect(self.test_script)
+        template_layout.addWidget(test_script_btn)
+
+        script_layout.addLayout(template_layout)
+
+        # 脚本编辑器
+        self.script_input = QTextEdit()
+        self.script_input.setPlaceholderText(
+            "请输入Python脚本代码...\n\n"
+            "使用方式:\n"
+            "1. 使用 print() 输出内容\n"
+            "2. 定义 result 变量\n"
+            "3. 定义 generate_content() 函数(推荐)\n\n"
+            "示例:\n"
+            "def generate_content():\n"
+            "    return '邮件内容'\n"
+        )
+        self.script_input.setMinimumHeight(200)
+
+        # 设置等宽字体
+        font = QFont("Courier New", 10)
+        self.script_input.setFont(font)
+
+        script_layout.addWidget(self.script_input)
+
+        # 帮助文本
+        help_label = QLabel(
+            "💡 提示: 脚本可以读取本地文件(如Excel、CSV等)来动态生成邮件内容。\n"
+            "   需要的库请自行安装,如: pip install pandas openpyxl"
+        )
+        help_label.setStyleSheet("color: #7f8c8d; font-size: 11px; padding: 5px;")
+        script_layout.addWidget(help_label)
+
+        # 添加标签页
+        self.content_tabs.addTab(text_widget, "普通文本")
+        self.content_tabs.addTab(script_widget, "Python脚本")
+
+        # 根据单选按钮切换标签页
+        self.text_mode_radio.toggled.connect(lambda checked: self.content_tabs.setCurrentIndex(0) if checked else None)
+        self.script_mode_radio.toggled.connect(lambda checked: self.content_tabs.setCurrentIndex(1) if checked else None)
+
+        content_layout.addWidget(self.content_tabs)
 
         content_group.setLayout(content_layout)
         layout.addWidget(content_group)
@@ -241,6 +341,47 @@ class SendEmailTab(QWidget):
         for account in accounts:
             self.sender_combo.addItem(account["email"])
 
+    def load_template(self):
+        """加载脚本模板"""
+        template_data = self.template_combo.currentData()
+        if template_data and isinstance(template_data, dict):
+            self.script_input.setPlainText(template_data["code"])
+
+    def test_script(self):
+        """测试Python脚本"""
+        script_code = self.script_input.toPlainText().strip()
+
+        if not script_code:
+            QMessageBox.warning(self, "警告", "请先输入脚本代码")
+            return
+
+        # 先验证语法
+        is_valid, msg = self.script_executor.validate_script(script_code)
+        if not is_valid:
+            QMessageBox.critical(self, "语法错误", msg)
+            return
+
+        # 执行脚本
+        self.main_window.update_status("正在测试脚本...")
+        success, output = self.script_executor.execute_script(script_code)
+
+        if success:
+            # 显示测试结果
+            QMessageBox.information(
+                self,
+                "测试成功",
+                f"脚本执行成功!\n\n生成的内容:\n{'-'*40}\n{output[:500]}\n{'-'*40}\n\n"
+                f"内容长度: {len(output)} 字符"
+            )
+            self.main_window.update_status("脚本测试成功")
+        else:
+            QMessageBox.critical(
+                self,
+                "执行失败",
+                f"脚本执行失败:\n\n{output}"
+            )
+            self.main_window.update_status("脚本测试失败")
+
     def import_recipients(self):
         """从文件导入收件人"""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -317,13 +458,49 @@ class SendEmailTab(QWidget):
             QMessageBox.warning(self, "警告", "没有有效的收件人邮箱")
             return
 
-        # 获取主题和内容
+        # 获取主题
         subject = self.subject_input.text().strip()
-        content = self.content_input.toPlainText().strip()
-
-        if not subject or not content:
-            QMessageBox.warning(self, "警告", "请填写邮件主题和正文")
+        if not subject:
+            QMessageBox.warning(self, "警告", "请填写邮件主题")
             return
+
+        # 获取内容(根据模式)
+        content = ""
+        if self.script_mode_radio.isChecked():
+            # Python脚本模式
+            script_code = self.script_input.toPlainText().strip()
+            if not script_code:
+                QMessageBox.warning(self, "警告", "请输入Python脚本")
+                return
+
+            # 先验证语法
+            is_valid, msg = self.script_executor.validate_script(script_code)
+            if not is_valid:
+                QMessageBox.critical(self, "语法错误", f"脚本语法错误:\n{msg}")
+                return
+
+            # 执行脚本生成内容
+            self.main_window.update_status("正在执行脚本生成邮件内容...")
+            success, output = self.script_executor.execute_script(script_code)
+
+            if not success:
+                QMessageBox.critical(
+                    self,
+                    "脚本执行失败",
+                    f"无法生成邮件内容:\n{output}"
+                )
+                self.main_window.update_status("脚本执行失败")
+                return
+
+            content = output
+            self.main_window.update_status("脚本执行成功")
+
+        else:
+            # 普通文本模式
+            content = self.content_input.toPlainText().strip()
+            if not content:
+                QMessageBox.warning(self, "警告", "请填写邮件正文")
+                return
 
         # 确认发送
         reply = QMessageBox.question(

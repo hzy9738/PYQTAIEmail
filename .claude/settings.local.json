@@ -1,0 +1,20 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://asia.qcode.cc/api",
+    "ANTHROPIC_AUTH_TOKEN": "cr_e173f1fe90df1636f55d7bbbb34b67a8d3d12de9b6979d82619db541d61c51d9"
+  },
+  "permissions": {
+    "allow": [
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(git checkout:*)",
+      "mcp__thinking__sequentialthinking",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(pyinstaller:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

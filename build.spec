@@ -42,7 +42,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='EmailService',
+    name='寻拟邮件工具',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -55,5 +55,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,  # 可以添加图标文件路径
+    icon='icon.ico',  # 使用自定义图标
 )

@@ -1,6 +1,6 @@
-# 自动化邮件服务系统
+# 寻拟邮件工具
 
-基于Python3和PyQt5的邮件自动化服务系统，支持163邮箱，提供可视化界面和定时任务功能。
+基于Python3和PyQt5的智能邮件自动化工具，支持163邮箱，提供可视化界面、定时任务和Python脚本动态生成邮件内容等强大功能。
 
 ## 功能特性
 
@@ -9,6 +9,7 @@
 - ✅ **群发邮件**: 支持批量发送邮件，可手动发送或定时发送
 - ✅ **定时任务**: 可设置每天定时发送邮件
 - ✅ **自动回复**: 自动监控收件箱并回复新邮件
+- ✅ **Python脚本**: 支持使用Python脚本动态生成邮件内容(读取Excel、CSV等文件)
 - ✅ **附件支持**: 支持添加多个附件
 - ✅ **HTML邮件**: 支持HTML格式的邮件内容
 - ✅ **系统托盘**: 支持最小化到系统托盘后台运行
@@ -102,15 +103,48 @@ build.bat
 1. 切换到"发送邮件"标签
 2. 选择发件账号
 3. 输入收件人(支持多个,每行一个或用逗号分隔)
-4. 填写邮件主题和正文
-5. (可选)添加附件
-6. 点击"立即发送"
+4. 选择内容模式:
+   - **普通文本**: 直接输入邮件正文
+   - **Python脚本**: 使用Python脚本动态生成邮件内容
+5. 填写邮件主题和正文
+6. (可选)添加附件
+7. 点击"立即发送"
 
 #### 批量发送
 
 - 可以在收件人框直接粘贴多个邮箱地址
 - 也可以点击"从文件导入收件人"导入txt文件
 - 系统会自动分批发送,避免被限流
+
+#### Python脚本模式(新功能)
+
+支持使用Python脚本动态生成邮件内容,可以:
+- 📊 读取Excel、CSV文件数据生成报表
+- 📁 扫描目录批量处理文件
+- 🕐 生成包含动态日期时间的内容
+- 🔄 根据复杂逻辑动态生成个性化邮件
+
+**使用方法**:
+1. 选择"Python脚本"模式
+2. 在脚本编辑器中编写Python代码
+3. 可以从模板库选择示例模板
+4. 点击"测试脚本"验证脚本是否正常
+5. 确认无误后发送邮件
+
+**脚本示例**:
+```python
+# 读取Excel文件生成报表
+import pandas as pd
+from datetime import datetime
+
+def generate_content():
+    df = pd.read_excel(r"C:\data\sales.xlsx")
+    content = f"销售报表 {datetime.now()}\n\n"
+    content += df.head().to_string()
+    return content
+```
+
+**详细文档**: 查看 [SCRIPT_GUIDE.md](SCRIPT_GUIDE.md) 获取完整使用指南
 
 ### 4. 定时任务
 
@@ -217,10 +251,12 @@ PYQTAIEmail/
 ├── email_sender.py         # 邮件发送模块
 ├── auto_reply.py           # 自动回复模块
 ├── task_scheduler.py       # 任务调度模块
+├── script_executor.py      # Python脚本执行器(新)
 ├── requirements.txt        # 依赖包列表
 ├── build.spec             # PyInstaller配置
 ├── build.bat              # Windows打包脚本
-└── README.md              # 说明文档
+├── README.md              # 说明文档
+└── SCRIPT_GUIDE.md        # Python脚本使用指南(新)
 ```
 
 ## 注意事项
