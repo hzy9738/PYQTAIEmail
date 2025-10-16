@@ -11,7 +11,9 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        ('icon.ico', '.'),  # 将图标文件添加到打包资源中
+    ],
     hiddenimports=[
         'PyQt5',
         'PyQt5.QtCore',
@@ -22,6 +24,12 @@ a = Analysis(
         'email',
         'smtplib',
         'imaplib',
+        # Python脚本常用库(可选,如果不打包这些库,用户脚本需要本地安装)
+        'pandas',
+        'openpyxl',
+        'xlrd',
+        'xlwt',
+        'numpy',
     ],
     hookspath=[],
     hooksconfig={},

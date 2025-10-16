@@ -189,9 +189,18 @@ def generate_content():
 ```
 **注意**: 发送HTML邮件时需要勾选 "使用HTML格式" 选项。
 
-## 常用Python库安装
+## 内置Python库支持
 
-在使用脚本功能前,需要安装相关的Python库:
+### 打包版本(exe)
+打包后的程序已内置以下常用Python库,无需额外安装:
+
+- ✅ **pandas** - Excel、CSV数据处理
+- ✅ **openpyxl** - Excel文件读写
+- ✅ **numpy** - 数值计算
+- ✅ **xlrd/xlwt** - 旧版Excel支持
+
+### 源码运行版本
+如果从源码运行,需要安装相关库:
 
 ```bash
 # Excel文件处理
@@ -208,6 +217,8 @@ pip install PyPDF2
 
 # JSON文件处理 (Python内置,无需安装)
 ```
+
+**注意**: 打包版本已内置常用库,可直接使用Excel、CSV读取功能,无需本地Python环境
 
 ## 注意事项
 

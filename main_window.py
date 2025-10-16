@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
 import sys
+import os
 
 from account_tab import AccountTab
 from send_email_tab import SendEmailTab
@@ -20,6 +21,17 @@ from config_manager import ConfigManager
 from email_sender import EmailSender
 from auto_reply import AutoReply, AutoReplyManager
 from task_scheduler import ScheduleManager
+
+
+def get_resource_path(relative_path):
+    """获取资源文件的绝对路径(支持打包后的环境)"""
+    try:
+        # PyInstaller创建临时文件夹,将路径存储在_MEIPASS中
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 
 class MainWindow(QMainWindow):
@@ -37,11 +49,15 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         """初始化UI"""
         self.setWindowTitle("寻拟邮件工具")
+
+        # 设置窗口初始大小和位置
         self.setGeometry(100, 100, 1000, 700)
 
+        # 设置窗口最小尺寸(允许用户调整大小)
+        self.setMinimumSize(800, 600)
+
         # 设置窗口图标
-        import os
-        icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
+        icon_path = get_resource_path("icon.ico")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
@@ -106,8 +122,7 @@ class MainWindow(QMainWindow):
         self.tray_icon = QSystemTrayIcon(self)
 
         # 设置托盘图标
-        import os
-        icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
+        icon_path = get_resource_path("icon.ico")
         if os.path.exists(icon_path):
             self.tray_icon.setIcon(QIcon(icon_path))
 

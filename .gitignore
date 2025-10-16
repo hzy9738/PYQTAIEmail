@@ -1,8 +1,17 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+*.log
+
+# 虚拟环境
+venv/
+env/
+.venv
+
+# 打包
 build/
 develop-eggs/
 dist/
@@ -19,10 +28,25 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-*.log
+
+# IDE
+.idea/
+.vscode/
+.claude/
+*.swp
+*.swo
+*~
+
+# 配置和数据
 config.json
 *.db
-venv/
-env/
-.venv
-.idea/
+.secret.key
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db
