@@ -189,6 +189,32 @@ class ScriptTemplate:
         ]
 
     @staticmethod
+    def get_batch_data_template_list() -> list:
+        """获取批量数据模板列表"""
+        return [
+            {
+                "name": "批量数据 - 简单示例",
+                "description": "展示如何处理单个Excel文件",
+                "code": ScriptTemplate.batch_data_basic()
+            },
+            {
+                "name": "批量数据 - HTML表格",
+                "description": "将Excel转换为HTML表格",
+                "code": ScriptTemplate.batch_data_html_table()
+            },
+            {
+                "name": "批量数据 - 数据统计",
+                "description": "生成Excel数据统计报告",
+                "code": ScriptTemplate.batch_data_statistics()
+            },
+            {
+                "name": "批量数据 - 自定义格式",
+                "description": "自定义邮件格式模板",
+                "code": ScriptTemplate.batch_data_custom()
+            }
+        ]
+
+    @staticmethod
     def basic_example() -> str:
         """基础示例模板"""
         return """# 基础示例 - 三种输出方式
@@ -359,6 +385,214 @@ def generate_content():
     next_week = now + timedelta(days=7)
     content += f"下次发送时间: {next_week.strftime('%Y年%m月%d日')}\\n\\n"
     content += f"祝您工作顺利!\\n"
+
+    return content
+"""
+
+    @staticmethod
+    def batch_data_basic() -> str:
+        """批量数据基础示例"""
+        return """# 批量数据 - 简单示例
+# 从context获取当前Excel文件信息并处理
+
+import pandas as pd
+from datetime import datetime
+
+def generate_content():
+    # 获取当前Excel文件路径
+    file_path = context['file']
+    filename = context['filename']
+    index = context['index']
+    total = context['total']
+
+    # 读取Excel文件
+    df = pd.read_excel(file_path)
+
+    # 生成邮件内容
+    content = f"尊敬的用户,您好!\\n\\n"
+    content += f"这是第 {index}/{total} 份数据报告\\n"
+    content += f"文件名: {filename}\\n\\n"
+    content += f"数据概览:\\n"
+    content += f"- 总行数: {len(df)}\\n"
+    content += f"- 总列数: {len(df.columns)}\\n"
+    content += f"- 列名: {', '.join(df.columns)}\\n\\n"
+    content += f"数据预览(前5行):\\n"
+    content += df.head().to_string()
+    content += f"\\n\\n发送时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\\n"
+
+    return content
+"""
+
+    @staticmethod
+    def batch_data_html_table() -> str:
+        """批量数据HTML表格模板"""
+        return """# 批量数据 - HTML表格格式
+# 将Excel转换为美观的HTML表格
+
+import pandas as pd
+from datetime import datetime
+
+def generate_content():
+    # 获取当前Excel文件信息
+    file_path = context['file']
+    filename = context['filename']
+    index = context['index']
+    total = context['total']
+
+    # 读取Excel文件
+    df = pd.read_excel(file_path)
+
+    # 生成HTML格式的邮件内容
+    html_content = f'''
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; }}
+            h2 {{ color: #2c3e50; }}
+            table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
+            th {{ background-color: #3498db; color: white; padding: 10px; text-align: left; }}
+            td {{ border: 1px solid #ddd; padding: 8px; }}
+            tr:nth-child(even) {{ background-color: #f2f2f2; }}
+            .info {{ color: #7f8c8d; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <h2>📊 {filename} 数据报告</h2>
+        <p>这是第 <strong>{index}/{total}</strong> 份报告</p>
+
+        <h3>数据概览</h3>
+        <ul>
+            <li>总记录数: {len(df)}</li>
+            <li>数据列: {len(df.columns)}</li>
+        </ul>
+
+        <h3>详细数据</h3>
+        {df.to_html(index=False, border=0)}
+
+        <p class="info">生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+    </body>
+    </html>
+    '''
+
+    return html_content
+"""
+
+    @staticmethod
+    def batch_data_statistics() -> str:
+        """批量数据统计模板"""
+        return """# 批量数据 - 数据统计报告
+# 生成包含统计信息的数据报告
+
+import pandas as pd
+from datetime import datetime
+
+def generate_content():
+    # 获取当前Excel文件信息
+    file_path = context['file']
+    filename = context['filename']
+    index = context['index']
+    total = context['total']
+
+    # 读取Excel文件
+    df = pd.read_excel(file_path)
+
+    # 生成统计报告
+    content = f'''
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; padding: 20px; }}
+        h2 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
+        .stats {{ background-color: #ecf0f1; padding: 15px; border-radius: 5px; margin: 10px 0; }}
+        .stats-item {{ margin: 5px 0; }}
+        table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
+        th {{ background-color: #34495e; color: white; padding: 10px; }}
+        td {{ border: 1px solid #bdc3c7; padding: 8px; }}
+    </style>
+</head>
+<body>
+    <h2>📈 {filename} 数据统计报告</h2>
+    <p>报告编号: {index}/{total} | 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+
+    <div class="stats">
+        <h3>基本统计</h3>
+        <div class="stats-item">📋 总记录数: <strong>{len(df)}</strong></div>
+        <div class="stats-item">📊 数据维度: <strong>{len(df.columns)} 列</strong></div>
+        <div class="stats-item">📝 列名: {', '.join(df.columns)}</div>
+    </div>
+'''
+
+    # 如果有数值列,添加统计信息
+    numeric_cols = df.select_dtypes(include=['number']).columns
+    if len(numeric_cols) > 0:
+        content += f'''
+    <div class="stats">
+        <h3>数值统计</h3>
+        {df[numeric_cols].describe().to_html()}
+    </div>
+'''
+
+    # 添加数据预览
+    content += f'''
+    <h3>数据预览(前10行)</h3>
+    {df.head(10).to_html(index=False)}
+
+    <p style="color: #7f8c8d; font-size: 12px; margin-top: 20px;">
+        此报告由寻拟邮件工具自动生成
+    </p>
+</body>
+</html>
+'''
+
+    return content
+"""
+
+    @staticmethod
+    def batch_data_custom() -> str:
+        """批量数据自定义格式模板"""
+        return """# 批量数据 - 自定义格式
+# 根据实际业务需求自定义邮件格式
+
+import pandas as pd
+from datetime import datetime
+
+def generate_content():
+    # 获取当前Excel文件信息
+    file_path = context['file']
+    filename = context['filename']
+    index = context['index']
+    total = context['total']
+
+    # 读取Excel文件
+    df = pd.read_excel(file_path)
+
+    # 示例: 假设Excel包含"姓名"、"金额"、"日期"等列
+    # 请根据实际Excel结构修改下面的代码
+
+    content = f"<html><body>"
+    content += f"<h2>数据报告 - {filename}</h2>"
+    content += f"<p>报告序号: {index}/{total}</p>"
+    content += f"<hr>"
+
+    # 示例: 遍历每一行数据
+    for idx, row in df.iterrows():
+        content += f"<p><strong>记录 {idx+1}:</strong></p>"
+        content += f"<ul>"
+
+        # 遍历每一列
+        for col in df.columns:
+            content += f"<li>{col}: {row[col]}</li>"
+
+        content += f"</ul>"
+
+        # 只显示前5条,避免邮件过长
+        if idx >= 4:
+            content += f"<p>... (还有 {len(df)-5} 条记录)</p>"
+            break
+
+    content += f"<hr>"
+    content += f"<p style='color: gray;'>生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>"
+    content += f"</body></html>"
 
     return content
 """
