@@ -9,12 +9,153 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                             QLabel, QLineEdit, QTextEdit, QComboBox,
                             QMessageBox, QGroupBox, QFormLayout, QCheckBox,
                             QFileDialog, QListWidget, QProgressDialog, QTabWidget,
-                            QRadioButton, QButtonGroup, QSpinBox)
+                            QRadioButton, QButtonGroup, QSpinBox, QPlainTextEdit,
+                            QSplitter)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QColor
 from email_sender import EmailSender, BulkEmailSender
 from script_executor import ScriptExecutor, ScriptTemplate
 from batch_data_sender import BatchDataEmailSender
+import re
+
+
+class PythonHighlighter(QSyntaxHighlighter):
+    """Python代码语法高亮"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        # 定义关键字
+        keywords = [
+            'and', 'as', 'assert', 'break', 'class', 'continue', 'def',
+            'del', 'elif', 'else', 'except', 'False', 'finally', 'for',
+            'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'None',
+            'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'True',
+            'try', 'while', 'with', 'yield', 'async', 'await'
+        ]
+
+        # 定义内置函数
+        builtins = [
+            'abs', 'all', 'any', 'bin', 'bool', 'bytes', 'chr', 'dict',
+            'dir', 'enumerate', 'filter', 'float', 'format', 'help', 'hex',
+            'input', 'int', 'isinstance', 'len', 'list', 'map', 'max', 'min',
+            'open', 'ord', 'print', 'range', 'repr', 'round', 'set', 'sorted',
+            'str', 'sum', 'tuple', 'type', 'zip'
+        ]
+
+        # 定义格式
+        self.highlighting_rules = []
+
+        # 关键字格式 - 蓝色加粗
+        keyword_format = QTextCharFormat()
+        keyword_format.setForeground(QColor("#0000FF"))
+        keyword_format.setFontWeight(QFont.Bold)
+        for word in keywords:
+            pattern = f'\\b{word}\\b'
+            self.highlighting_rules.append((re.compile(pattern), keyword_format))
+
+        # 内置函数格式 - 深蓝色
+        builtin_format = QTextCharFormat()
+        builtin_format.setForeground(QColor("#004080"))
+        for word in builtins:
+            pattern = f'\\b{word}\\b'
+            self.highlighting_rules.append((re.compile(pattern), builtin_format))
+
+        # 字符串格式 - 绿色
+        string_format = QTextCharFormat()
+        string_format.setForeground(QColor("#008000"))
+        self.highlighting_rules.append((re.compile(r'"[^"\\]*(\\.[^"\\]*)*"'), string_format))
+        self.highlighting_rules.append((re.compile(r"'[^'\\]*(\\.[^'\\]*)*'"), string_format))
+
+        # 注释格式 - 灰色
+        comment_format = QTextCharFormat()
+        comment_format.setForeground(QColor("#808080"))
+        comment_format.setFontItalic(True)
+        self.highlighting_rules.append((re.compile(r'#[^\n]*'), comment_format))
+
+        # 数字格式 - 红色
+        number_format = QTextCharFormat()
+        number_format.setForeground(QColor("#FF0000"))
+        self.highlighting_rules.append((re.compile(r'\b[0-9]+\.?[0-9]*\b'), number_format))
+
+        # 函数定义格式 - 紫色加粗
+        function_format = QTextCharFormat()
+        function_format.setForeground(QColor("#800080"))
+        function_format.setFontWeight(QFont.Bold)
+        self.highlighting_rules.append((re.compile(r'\bdef\s+(\w+)'), function_format))
+
+        # 类定义格式 - 紫色加粗
+        class_format = QTextCharFormat()
+        class_format.setForeground(QColor("#800080"))
+        class_format.setFontWeight(QFont.Bold)
+        self.highlighting_rules.append((re.compile(r'\bclass\s+(\w+)'), class_format))
+
+    def highlightBlock(self, text):
+        """高亮文本块"""
+        for pattern, format in self.highlighting_rules:
+            for match in pattern.finditer(text):
+                start = match.start()
+                length = match.end() - start
+                self.setFormat(start, length, format)
+
+
+class CodeEditor(QPlainTextEdit):
+    """支持Tab缩进的代码编辑器"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        # 设置等宽字体
+        font = QFont("Courier New", 10)
+        self.setFont(font)
+
+        # 设置Tab宽度为4个空格
+        self.setTabStopDistance(4 * self.fontMetrics().horizontalAdvance(' '))
+
+        # 启用语法高亮
+        self.highlighter = PythonHighlighter(self.document())
+
+    def keyPressEvent(self, event):
+        """处理按键事件"""
+        # Tab键插入4个空格
+        if event.key() == Qt.Key_Tab:
+            self.insertPlainText('    ')
+            return
+
+        # Shift+Tab删除前导空格
+        if event.key() == Qt.Key_Backtab:
+            cursor = self.textCursor()
+            cursor.movePosition(cursor.StartOfLine, cursor.KeepAnchor)
+            text = cursor.selectedText()
+            if text.startswith('    '):
+                cursor.removeSelectedText()
+                cursor.insertText(text[4:])
+            elif text.startswith('\t'):
+                cursor.removeSelectedText()
+                cursor.insertText(text[1:])
+            return
+
+        # Enter键自动缩进
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            cursor = self.textCursor()
+            cursor.movePosition(cursor.StartOfBlock, cursor.KeepAnchor)
+            text = cursor.selectedText()
+
+            # 计算当前行的缩进
+            indent = len(text) - len(text.lstrip())
+
+            # 如果行尾是冒号,增加一级缩进
+            cursor = self.textCursor()
+            cursor.select(cursor.LineUnderCursor)
+            line_text = cursor.selectedText().strip()
+            extra_indent = 4 if line_text.endswith(':') else 0
+
+            # 插入换行和缩进
+            super().keyPressEvent(event)
+            self.insertPlainText(' ' * (indent + extra_indent))
+            return
+
+        super().keyPressEvent(event)
 
 
 class SendEmailWorker(QThread):
@@ -101,44 +242,47 @@ class SendEmailTab(QWidget):
     def init_ui(self):
         """初始化UI"""
         layout = QVBoxLayout(self)
+        layout.setSpacing(5)  # 减小间距
+        layout.setContentsMargins(5, 5, 5, 5)  # 减小边距
 
-        # 发件人选择
+        # 发件人选择 - 紧凑布局
         sender_group = QGroupBox("发件人")
         sender_group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
                 border: 2px solid #3498db;
                 border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 5px;
+                padding-top: 5px;
             }
         """)
         sender_layout = QHBoxLayout()
 
         self.sender_combo = QComboBox()
-        self.sender_combo.setMinimumHeight(30)
+        self.sender_combo.setMinimumHeight(28)
         sender_layout.addWidget(QLabel("选择发件账号:"))
         sender_layout.addWidget(self.sender_combo, 1)
 
         sender_group.setLayout(sender_layout)
         layout.addWidget(sender_group)
 
-        # 收件人
+        # 收件人 - 紧凑布局
         recipient_group = QGroupBox("收件人")
         recipient_group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
                 border: 2px solid #3498db;
                 border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 5px;
+                padding-top: 5px;
             }
         """)
         recipient_layout = QVBoxLayout()
+        recipient_layout.setSpacing(3)
 
         self.recipient_input = QTextEdit()
-        self.recipient_input.setPlaceholderText("请输入收件人邮箱,多个邮箱用换行、逗号或分号分隔\n例如:\nuser1@example.com\nuser2@example.com")
-        self.recipient_input.setMaximumHeight(100)
+        self.recipient_input.setPlaceholderText("请输入收件人邮箱,多个邮箱用换行、逗号或分号分隔\n例如:user1@example.com; user2@example.com")
+        self.recipient_input.setMaximumHeight(70)  # 减小高度
         recipient_layout.addWidget(self.recipient_input)
 
         # 导入收件人按钮
@@ -147,7 +291,7 @@ class SendEmailTab(QWidget):
             QPushButton {
                 background-color: #95a5a6;
                 color: white;
-                padding: 5px 10px;
+                padding: 3px 8px;
                 border-radius: 3px;
             }
             QPushButton:hover {
@@ -160,30 +304,33 @@ class SendEmailTab(QWidget):
         recipient_group.setLayout(recipient_layout)
         layout.addWidget(recipient_group)
 
-        # 邮件内容
+        # 邮件内容 - 紧凑布局,为编辑区留更多空间
         content_group = QGroupBox("邮件内容")
         content_group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
                 border: 2px solid #3498db;
                 border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 5px;
+                padding-top: 5px;
             }
         """)
         content_layout = QVBoxLayout()
+        content_layout.setSpacing(3)
 
-        # 主题
+        # 主题 - 单行紧凑
         subject_layout = QHBoxLayout()
         subject_layout.addWidget(QLabel("主题:"))
         self.subject_input = QLineEdit()
         self.subject_input.setPlaceholderText("请输入邮件主题")
+        self.subject_input.setMinimumHeight(28)
         subject_layout.addWidget(self.subject_input)
         content_layout.addLayout(subject_layout)
 
-        # 内容模式选择
+        # 内容模式选择 - 单行紧凑
         mode_layout = QHBoxLayout()
-        mode_layout.addWidget(QLabel("内容模式:"))
+        mode_layout.setSpacing(10)
+        mode_layout.addWidget(QLabel("模式:"))
 
         self.mode_group = QButtonGroup()
         self.text_mode_radio = QRadioButton("普通文本")
@@ -201,29 +348,33 @@ class SendEmailTab(QWidget):
         mode_layout.addStretch()
 
         # HTML格式复选框
-        self.html_checkbox = QCheckBox("使用HTML格式")
+        self.html_checkbox = QCheckBox("HTML格式")
         mode_layout.addWidget(self.html_checkbox)
 
         content_layout.addLayout(mode_layout)
 
-        # 内容标签页(普通文本/脚本/批量数据)
+        # 内容标签页(普通文本/脚本/批量数据) - 自适应高度
         self.content_tabs = QTabWidget()
+        self.content_tabs.setStyleSheet("QTabWidget::pane { border: 1px solid #bdc3c7; }")
 
         # 普通文本标签页
         text_widget = QWidget()
         text_layout = QVBoxLayout(text_widget)
+        text_layout.setContentsMargins(2, 2, 2, 2)
         self.content_input = QTextEdit()
-        self.content_input.setPlaceholderText("请输入邮件正文")
-        self.content_input.setMinimumHeight(300)  # 增大内容框高度
+        self.content_input.setPlaceholderText("请输入邮件正文...")
+        # 不设置固定高度,让其自适应
         text_layout.addWidget(self.content_input)
 
         # Python脚本标签页
         script_widget = QWidget()
         script_layout = QVBoxLayout(script_widget)
+        script_layout.setContentsMargins(2, 2, 2, 2)
+        script_layout.setSpacing(3)
 
-        # 脚本模板选择
+        # 脚本模板选择 - 紧凑布局
         template_layout = QHBoxLayout()
-        template_layout.addWidget(QLabel("脚本模板:"))
+        template_layout.addWidget(QLabel("模板:"))
         self.template_combo = QComboBox()
         self.template_combo.addItem("-- 选择模板 --", "")
         for template in ScriptTemplate.get_template_list():
@@ -237,7 +388,7 @@ class SendEmailTab(QWidget):
             QPushButton {
                 background-color: #f39c12;
                 color: white;
-                padding: 5px 15px;
+                padding: 3px 10px;
                 border-radius: 3px;
             }
             QPushButton:hover {
@@ -249,10 +400,10 @@ class SendEmailTab(QWidget):
 
         script_layout.addLayout(template_layout)
 
-        # 脚本编辑器
-        self.script_input = QTextEdit()
+        # 脚本编辑器 - 使用CodeEditor支持语法高亮和Tab缩进
+        self.script_input = CodeEditor()
         self.script_input.setPlaceholderText(
-            "请输入Python脚本代码...\n\n"
+            "请输入Python脚本代码(支持语法高亮和Tab缩进)...\n\n"
             "使用方式:\n"
             "1. 使用 print() 输出内容\n"
             "2. 定义 result 变量\n"
@@ -261,53 +412,51 @@ class SendEmailTab(QWidget):
             "def generate_content():\n"
             "    return '邮件内容'\n"
         )
-        self.script_input.setMinimumHeight(200)
-
-        # 设置等宽字体
-        font = QFont("Courier New", 10)
-        self.script_input.setFont(font)
-
+        # 不设置固定高度,让其自适应
         script_layout.addWidget(self.script_input)
 
-        # 帮助文本
+        # 帮助文本 - 紧凑
         help_label = QLabel(
-            "💡 提示: 脚本可以读取本地文件(如Excel、CSV等)来动态生成邮件内容。\n"
-            "   需要的库请自行安装,如: pip install pandas openpyxl"
+            "💡 提示: 脚本可读取Excel、CSV等文件动态生成内容 | 需要的库: pip install pandas openpyxl"
         )
-        help_label.setStyleSheet("color: #7f8c8d; font-size: 11px; padding: 5px;")
+        help_label.setStyleSheet("color: #7f8c8d; font-size: 10px; padding: 2px;")
         script_layout.addWidget(help_label)
 
-        # 批量数据标签页
+        # ��量数据标签页 - 紧凑布局
         batch_data_widget = QWidget()
         batch_data_layout = QVBoxLayout(batch_data_widget)
+        batch_data_layout.setContentsMargins(2, 2, 2, 2)
+        batch_data_layout.setSpacing(3)
 
-        # 提示信息
-        batch_hint_label = QLabel("💡 收件人使用上方的「收件人」输入框(支持多个邮箱)")
-        batch_hint_label.setStyleSheet("color: #3498db; font-weight: bold; padding: 5px; background-color: #ecf0f1; border-radius: 3px;")
+        # 提示信息 - 紧凑
+        batch_hint_label = QLabel("💡 收件人使用上方的「收件人」输入框")
+        batch_hint_label.setStyleSheet("color: #3498db; font-weight: bold; padding: 3px; background-color: #ecf0f1; border-radius: 2px; font-size: 10px;")
         batch_data_layout.addWidget(batch_hint_label)
 
-        # 主题模板
+        # 主题模板 - 紧凑
         batch_subject_layout = QHBoxLayout()
-        batch_subject_layout.addWidget(QLabel("主题模板:"))
+        batch_subject_layout.addWidget(QLabel("主题:"))
         self.batch_subject_template = QLineEdit()
         self.batch_subject_template.setPlaceholderText("支持变量: {filename}, {index}, {total}, {date}")
         self.batch_subject_template.setText("数据报告 - {filename}")
+        self.batch_subject_template.setMinimumHeight(26)
         batch_subject_layout.addWidget(self.batch_subject_template)
         batch_data_layout.addLayout(batch_subject_layout)
 
-        # Excel文件夹选择
+        # Excel文件夹选择 - 紧凑
         folder_layout = QHBoxLayout()
-        folder_layout.addWidget(QLabel("Excel文件夹:"))
+        folder_layout.addWidget(QLabel("文件夹:"))
         self.batch_folder_input = QLineEdit()
         self.batch_folder_input.setPlaceholderText("选择包含Excel文件的文件夹")
+        self.batch_folder_input.setMinimumHeight(26)
         folder_layout.addWidget(self.batch_folder_input)
 
-        browse_folder_btn = QPushButton("浏览...")
+        browse_folder_btn = QPushButton("浏览")
         browse_folder_btn.setStyleSheet("""
             QPushButton {
                 background-color: #3498db;
                 color: white;
-                padding: 5px 15px;
+                padding: 3px 10px;
                 border-radius: 3px;
             }
             QPushButton:hover {
@@ -322,7 +471,7 @@ class SendEmailTab(QWidget):
             QPushButton {
                 background-color: #27ae60;
                 color: white;
-                padding: 5px 15px;
+                padding: 3px 10px;
                 border-radius: 3px;
             }
             QPushButton:hover {
@@ -334,20 +483,22 @@ class SendEmailTab(QWidget):
 
         batch_data_layout.addLayout(folder_layout)
 
-        # Excel文件列表
+        # Excel文件列表 - 紧凑
+        file_list_label = QLabel("已找到的Excel文件:")
+        file_list_label.setStyleSheet("font-size: 10px;")
+        batch_data_layout.addWidget(file_list_label)
         self.batch_file_list = QListWidget()
-        self.batch_file_list.setMaximumHeight(80)
-        batch_data_layout.addWidget(QLabel("已找到的Excel文件:"))
+        self.batch_file_list.setMaximumHeight(60)  # 减小高度
         batch_data_layout.addWidget(self.batch_file_list)
 
-        # Python脚本编辑器(批量数据专用)
+        # Python脚本编辑器(批量数据专用) - 紧凑布局
         batch_script_label = QLabel("Python数据处理脚本:")
-        batch_script_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        batch_script_label.setStyleSheet("font-weight: bold; margin-top: 3px; font-size: 10px;")
         batch_data_layout.addWidget(batch_script_label)
 
-        # 批量数据脚本模板选择
+        # 批量数据脚本模板选择 - 紧凑
         batch_template_layout = QHBoxLayout()
-        batch_template_layout.addWidget(QLabel("脚本模板:"))
+        batch_template_layout.addWidget(QLabel("模板:"))
         self.batch_template_combo = QComboBox()
         self.batch_template_combo.addItem("-- 选择批量数据模板 --", "")
         for template in ScriptTemplate.get_batch_data_template_list():
@@ -356,12 +507,12 @@ class SendEmailTab(QWidget):
         batch_template_layout.addWidget(self.batch_template_combo, 1)
 
         # 测试批量脚本按钮
-        test_batch_script_btn = QPushButton("测试脚本")
+        test_batch_script_btn = QPushButton("测试")
         test_batch_script_btn.setStyleSheet("""
             QPushButton {
                 background-color: #f39c12;
                 color: white;
-                padding: 5px 15px;
+                padding: 3px 10px;
                 border-radius: 3px;
             }
             QPushButton:hover {
@@ -377,7 +528,7 @@ class SendEmailTab(QWidget):
             QPushButton {
                 background-color: #9b59b6;
                 color: white;
-                padding: 5px 15px;
+                padding: 3px 10px;
                 border-radius: 3px;
             }
             QPushButton:hover {
@@ -389,9 +540,10 @@ class SendEmailTab(QWidget):
 
         batch_data_layout.addLayout(batch_template_layout)
 
-        self.batch_script_input = QTextEdit()
+        # 使用CodeEditor支持语法高亮和Tab缩进
+        self.batch_script_input = CodeEditor()
         self.batch_script_input.setPlaceholderText(
-            "请输入Python脚本处理单个Excel文件...\n\n"
+            "请输入Python脚本处理单个Excel文件(支持语法高亮和Tab缩进)...\n\n"
             "可用变量:\n"
             "  context['file']          - Excel文件完整路径\n"
             "  context['filename']      - 文件名(不含扩展名)\n"
@@ -404,12 +556,10 @@ class SendEmailTab(QWidget):
             "    df = pd.read_excel(context['file'])\n"
             "    return f\"数据: {df.to_html()}\"\n"
         )
-        self.batch_script_input.setMinimumHeight(150)
-        font = QFont("Courier New", 10)
-        self.batch_script_input.setFont(font)
+        # 不设置固定高度,让其自适应
         batch_data_layout.addWidget(self.batch_script_input)
 
-        # 批量数据发送选项
+        # 批量数据发送选项 - 紧凑
         batch_options_layout = QHBoxLayout()
 
         batch_options_layout.addWidget(QLabel("发送间隔:"))
@@ -418,16 +568,17 @@ class SendEmailTab(QWidget):
         self.batch_interval_spin.setMaximum(60)
         self.batch_interval_spin.setValue(2)
         self.batch_interval_spin.setSuffix(" 秒")
+        self.batch_interval_spin.setMinimumHeight(26)
         batch_options_layout.addWidget(self.batch_interval_spin)
 
         batch_options_layout.addStretch()
         batch_data_layout.addLayout(batch_options_layout)
 
-        # 提示
+        # 提示 - 紧凑
         batch_help_label = QLabel(
             "💡 提示: 每个收件人会收到所有Excel文件对应的邮件 (N个收件人 × M个Excel = N×M封邮件)"
         )
-        batch_help_label.setStyleSheet("color: #7f8c8d; font-size: 11px; padding: 5px;")
+        batch_help_label.setStyleSheet("color: #7f8c8d; font-size: 10px; padding: 2px;")
         batch_data_layout.addWidget(batch_help_label)
 
         # 添加标签页
@@ -446,23 +597,25 @@ class SendEmailTab(QWidget):
         content_layout.addWidget(self.content_tabs)
 
         content_group.setLayout(content_layout)
-        layout.addWidget(content_group)
+        # 给内容组设置拉伸因子,使其占据更多空间
+        layout.addWidget(content_group, 1)
 
-        # 附件
+        # 附件 - 紧凑布局
         self.attachment_group = QGroupBox("附件")
         self.attachment_group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
                 border: 2px solid #3498db;
                 border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 5px;
+                padding-top: 5px;
             }
         """)
         attachment_layout = QVBoxLayout()
+        attachment_layout.setSpacing(3)
 
         self.attachment_list = QListWidget()
-        self.attachment_list.setMaximumHeight(60)  # 减小附件框高度
+        self.attachment_list.setMaximumHeight(50)  # 减小附件框高度
         attachment_layout.addWidget(self.attachment_list)
 
         attachment_btn_layout = QHBoxLayout()
@@ -472,7 +625,7 @@ class SendEmailTab(QWidget):
             QPushButton {
                 background-color: #3498db;
                 color: white;
-                padding: 5px 10px;
+                padding: 3px 8px;
                 border-radius: 3px;
             }
             QPushButton:hover {
@@ -487,7 +640,7 @@ class SendEmailTab(QWidget):
             QPushButton {
                 background-color: #e74c3c;
                 color: white;
-                padding: 5px 10px;
+                padding: 3px 8px;
                 border-radius: 3px;
             }
             QPushButton:hover {
@@ -501,7 +654,7 @@ class SendEmailTab(QWidget):
         self.attachment_group.setLayout(attachment_layout)
         layout.addWidget(self.attachment_group)
 
-        # 发送按钮
+        # 发送按钮 - 紧凑布局
         send_btn_layout = QHBoxLayout()
         send_btn_layout.addStretch()
 
@@ -510,9 +663,9 @@ class SendEmailTab(QWidget):
             QPushButton {
                 background-color: #27ae60;
                 color: white;
-                padding: 10px 30px;
-                border-radius: 5px;
-                font-size: 16px;
+                padding: 8px 25px;
+                border-radius: 4px;
+                font-size: 14px;
                 font-weight: bold;
             }
             QPushButton:hover {
@@ -562,6 +715,7 @@ class SendEmailTab(QWidget):
         """加载脚本模板"""
         template_data = self.template_combo.currentData()
         if template_data and isinstance(template_data, dict):
+            # CodeEditor使用setPlainText
             self.script_input.setPlainText(template_data["code"])
 
     def test_script(self):
