@@ -7,6 +7,7 @@
 - ✅ **可视化界面**: 基于PyQt5的现代化GUI界面，支持Windows 10
 - ✅ **163邮箱支持**: 完整支持163邮箱账号绑定和管理
 - ✅ **群发邮件**: 支持批量发送邮件，可手动发送或定时发送
+- ✅ **批量数据**: 🆕 支持读取Excel文件夹批量发送数据报告邮件
 - ✅ **定时任务**: 可设置每天定时发送邮件
 - ✅ **自动回复**: 自动监控收件箱并回复新邮件
 - ✅ **Python脚本**: 支持使用Python脚本动态生成邮件内容(读取Excel、CSV等文件)
@@ -117,6 +118,7 @@ python -m PyInstaller build.spec --clean
 4. 选择内容模式:
    - **普通文本**: 直接输入邮件正文
    - **Python脚本**: 使用Python脚本动态生成邮件内容
+   - **批量数据**: 🆕 从Excel文件夹批量发送数据报告
 5. 填写邮件主题和正文
 6. (可选)添加附件
 7. 点击"立即发送"
@@ -170,6 +172,67 @@ def generate_content():
 ```
 
 **详细文档**: 查看 [SCRIPT_GUIDE.md](SCRIPT_GUIDE.md) 获取完整使用指南
+
+#### 批量数据模式(🆕 v2.0.1新功能)
+
+支持读取Excel文件夹,为每个文件生成个性化邮件并批量发送:
+
+**使用场景**:
+- 📊 批量发送数据报告(每个Excel文件一封邮件)
+- 📈 发送个性化统计报表
+- 📑 发送自动生成的HTML表格邮件
+- 🔄 定期发送数据更新通知
+
+**使用方法**:
+1. 在"发送邮件"页面选择"批量数据"单选按钮
+2. 输入收件人(上方的收件人输入框)
+3. 设置主题模板,支持变量:
+   - `{filename}` - 文件名(不含扩展名)
+   - `{filename_full}` - 文件名(含扩展名)
+   - `{index}` - 当前序号
+   - `{total}` - 总文件数
+   - `{date}` - 当前日期
+4. 选择包含Excel文件的文件夹,点击"扫描"
+5. 从脚本模板下拉框选择内置模板,或编写自定义脚本
+6. 点击"测试脚本"验证脚本,或"预览第1封"查看效果
+7. 设置发送间隔(避免频繁发送)
+8. 点击"立即发送"
+
+**内置模板**:
+- **基础示例**: 展示Excel文件基本信息和数据预览
+- **HTML表格**: 将Excel转换为美观的HTML表格
+- **数据统计**: 生成包含统计分析的专业报告
+- **自定义格式**: 可根据实际需求自由定制
+
+**脚本可用变量**:
+```python
+context['file']          # Excel文件完整路径
+context['filename']      # 文件名(不含扩展名)
+context['filename_full'] # 文件名(含扩展名)
+context['index']         # 当前序号(1开始)
+context['total']         # 总文件数
+```
+
+**脚本示例**:
+```python
+def generate_content():
+    import pandas as pd
+    df = pd.read_excel(context['file'])
+
+    html = f"<h2>{context['filename']} 数据报告</h2>"
+    html += f"<p>序号: {context['index']}/{context['total']}</p>"
+    html += df.to_html(index=False)
+
+    return html
+```
+
+**注意事项**:
+- 每个收件人会收到所有Excel文件对应的邮件(N个收件人 × M个Excel = N×M封邮件)
+- 支持 .xlsx、.xls、.xlsm 格式
+- 建议设置合理的发送间隔,避免被限流
+- 批量数据模式下不支持添加附件
+
+**详细文档**: 查看 [批量数据功能说明.md](批量数据功能说明.md) 获取更多信息
 
 ### 4. 定时任务
 
@@ -295,15 +358,18 @@ AIEmail/
 ├── auto_reply_tab.py       # 自动回复标签页
 ├── config_manager.py       # 配置管理（加密存储）
 ├── email_sender.py         # 邮件发送模块（支持批量发送）
+├── batch_data_sender.py    # 批量数据发送模块（v2.0.1新增）
 ├── auto_reply.py           # 自动回复模块
 ├── task_scheduler.py       # 任务调度模块
 ├── script_executor.py      # Python脚本执行器（模块预加载）
+├── create_test_excel.py    # 测试Excel生成工具（v2.0.1新增）
 ├── hook-numpy.py           # PyInstaller numpy runtime hook
 ├── requirements.txt        # 依赖包列表
 ├── build.spec              # PyInstaller配置（优化）
 ├── icon.ico                # 应用程序图标
 ├── README.md               # 说明文档
 ├── SCRIPT_GUIDE.md         # Python脚本使用指南
+├── 批量数据功能说明.md    # 批量数据功能说明（v2.0.1新增）
 └── .claude/                # Claude Code配置目录
     └── problem.md          # 问题追踪文档
 ```
@@ -340,7 +406,18 @@ MIT License
 
 ## 版本历史
 
-### v2.0.0 (当前版本)
+### v2.0.1 (当前版本)
+- ✨ 新增批量数据发送功能,支持Excel文件夹批量处理
+- ✨ 新增4个批量数据脚本模板(基础示例/HTML表格/数据统计/自定义格式)
+- ✨ 支持主题模板变量: {filename}, {index}, {total}, {date}
+- ✨ 新增批量数据脚本实时测试和预览功能
+- 🎨 优化UI布局,批量数据模式下自动隐藏附件区域
+- 🔧 新增BatchDataEmailSender类用于批量数据处理
+- 🔧 添加发送间隔配置,避免频繁发送
+- 📝 新增批量数据功能说明文档
+- 🛠️ 新增测试Excel文件生成工具
+
+### v2.0.0
 - ✨ 新增 Python 脚本功能，支持动态生成邮件内容
 - ✨ 内置脚本模板库（Excel、CSV、文本文件读取等）
 - 🐛 修复 numpy 2.x CPU dispatcher 重复初始化问题
