@@ -151,6 +151,9 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """关闭事件 - 最小化到托盘"""
         if self.tray_icon.isVisible():
+            # 保存发送邮件页面的状态
+            self.send_email_tab.save_state()
+            
             self.hide()
             self.tray_icon.showMessage(
                 "寻拟邮件工具",
@@ -160,6 +163,8 @@ class MainWindow(QMainWindow):
             )
             event.ignore()
         else:
+            # 保存发送邮件页面的状态
+            self.send_email_tab.save_state()
             event.accept()
 
     def quit_application(self):
@@ -173,6 +178,9 @@ class MainWindow(QMainWindow):
         )
 
         if reply == QMessageBox.Yes:
+            # 保存发送邮件页面的状态
+            self.send_email_tab.save_state()
+            
             # 停止所有服务
             self.auto_reply_manager.stop_all()
             self.schedule_manager.stop_scheduler()

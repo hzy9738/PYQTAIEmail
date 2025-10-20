@@ -44,7 +44,18 @@ class ConfigManager:
                     "enabled": False,
                     "reply_content": "感谢您的来信,我会尽快回复。"
                 },
-                "scheduled_tasks": []
+                "scheduled_tasks": [],
+                "send_email_state": {
+                    "recipients": "",
+                    "subject": "",
+                    "text_content": "",
+                    "script_content": "",
+                    "batch_subject_template": "数据报告 - {filename}",
+                    "batch_folder_path": "",
+                    "batch_script_content": "",
+                    "mode": "text",
+                    "html_enabled": False
+                }
             }
             self._save_config(default_config)
             return default_config
@@ -172,6 +183,40 @@ class ConfigManager:
             if task["task_name"] == task_name:
                 task["enabled"] = enabled
         self._save_config()
+
+    def save_send_email_state(self, state: Dict) -> bool:
+        """保存发送邮件页面的状态"""
+        try:
+            # 确保send_email_state字段存在
+            if "send_email_state" not in self.config:
+                self.config["send_email_state"] = {}
+            
+            # 更新状态
+            self.config["send_email_state"].update(state)
+            self._save_config()
+            return True
+        except Exception as e:
+            print(f"保存发送邮件状态失败: {e}")
+            return False
+
+    def get_send_email_state(self) -> Dict:
+        """获取发送邮件页面的保存状态"""
+        default_state = {
+            "recipients": "",
+            "subject": "",
+            "text_content": "",
+            "script_content": "",
+            "batch_subject_template": "数据报告 - {filename}",
+            "batch_folder_path": "",
+            "batch_script_content": "",
+            "mode": "text",
+            "html_enabled": False
+        }
+        
+        if "send_email_state" not in self.config:
+            self.config["send_email_state"] = default_state
+        
+        return self.config.get("send_email_state", default_state)
 
 
 if __name__ == "__main__":

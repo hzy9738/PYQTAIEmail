@@ -683,6 +683,85 @@ class SendEmailTab(QWidget):
 
         # 加载账号
         self.refresh_accounts()
+        
+        # 恢复上次保存的状态
+        self.load_state()
+
+    def load_state(self):
+        """从配置中恢复上次保存的状态"""
+        try:
+            state = self.config_manager.get_send_email_state()
+            
+            # 恢复收件人
+            if state.get("recipients"):
+                self.recipient_input.setPlainText(state["recipients"])
+            
+            # 恢复主题
+            if state.get("subject"):
+                self.subject_input.setText(state["subject"])
+            
+            # 恢复普通文本内容
+            if state.get("text_content"):
+                self.content_input.setPlainText(state["text_content"])
+            
+            # 恢复脚本内容
+            if state.get("script_content"):
+                self.script_input.setPlainText(state["script_content"])
+            
+            # 恢复批量数据设置
+            if state.get("batch_subject_template"):
+                self.batch_subject_template.setText(state["batch_subject_template"])
+            
+            if state.get("batch_folder_path"):
+                self.batch_folder_input.setText(state["batch_folder_path"])
+                # 扫描Excel文件
+                self.scan_excel_files()
+            
+            if state.get("batch_script_content"):
+                self.batch_script_input.setPlainText(state["batch_script_content"])
+            
+            # 恢复模式选择
+            mode = state.get("mode", "text")
+            if mode == "text":
+                self.text_mode_radio.setChecked(True)
+            elif mode == "script":
+                self.script_mode_radio.setChecked(True)
+            elif mode == "batch_data":
+                self.batch_data_mode_radio.setChecked(True)
+            
+            # 恢复HTML格式设置
+            if state.get("html_enabled"):
+                self.html_checkbox.setChecked(True)
+        except Exception as e:
+            print(f"恢复发送邮件状态失败: {e}")
+
+    def save_state(self):
+        """保存当前的发送邮件页面状态"""
+        try:
+            state = {
+                "recipients": self.recipient_input.toPlainText(),
+                "subject": self.subject_input.text(),
+                "text_content": self.content_input.toPlainText(),
+                "script_content": self.script_input.toPlainText(),
+                "batch_subject_template": self.batch_subject_template.text(),
+                "batch_folder_path": self.batch_folder_input.text(),
+                "batch_script_content": self.batch_script_input.toPlainText(),
+                "mode": self._get_current_mode(),
+                "html_enabled": self.html_checkbox.isChecked()
+            }
+            self.config_manager.save_send_email_state(state)
+        except Exception as e:
+            print(f"保存发送邮件状态失败: {e}")
+    
+    def _get_current_mode(self) -> str:
+        """获取当前模式"""
+        if self.text_mode_radio.isChecked():
+            return "text"
+        elif self.script_mode_radio.isChecked():
+            return "script"
+        elif self.batch_data_mode_radio.isChecked():
+            return "batch_data"
+        return "text"
 
     def on_mode_changed(self, mode_index):
         """模式切换时的处理"""
