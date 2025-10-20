@@ -76,7 +76,7 @@ class ConfigManager:
         return self.cipher.decrypt(encrypted_password.encode()).decode()
 
     def add_email_account(self, email: str, password: str, smtp_server: str = "smtp.163.com",
-                         smtp_port: int = 465) -> bool:
+                         smtp_port: int = 465, imap_password: str = None) -> bool:
         """添加邮箱账号"""
         try:
             # 检查是否已存在
@@ -87,10 +87,16 @@ class ConfigManager:
             # 加密密码
             encrypted_pwd = self.encrypt_password(password)
 
+            # 如果没有提供IMAP授权码，则使用SMTP授权码
+            if imap_password is None:
+                imap_password = password
+            encrypted_imap_pwd = self.encrypt_password(imap_password)
+
             # 添加账号
             self.config["email_accounts"].append({
                 "email": email,
                 "password": encrypted_pwd,
+                "imap_password": encrypted_imap_pwd,
                 "smtp_server": smtp_server,
                 "smtp_port": smtp_port,
                 "imap_server": "imap.163.com",
@@ -121,11 +127,18 @@ class ConfigManager:
         return self.config["email_accounts"]
 
     def get_account_credentials(self, email: str) -> Optional[Dict]:
-        """获取账号凭证(包含解密后的密码)"""
+        """获取账号凭证(包含解密后的密码和IMAP密码)"""
         for account in self.config["email_accounts"]:
             if account["email"] == email:
                 credentials = account.copy()
                 credentials["password"] = self.decrypt_password(account["password"])
+
+                # 获取IMAP密码，如果不存在则使用SMTP密码
+                if "imap_password" in account:
+                    credentials["imap_password"] = self.decrypt_password(account["imap_password"])
+                else:
+                    credentials["imap_password"] = credentials["password"]
+
                 return credentials
         return None
 

@@ -53,7 +53,13 @@ class AccountTab(QWidget):
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setPlaceholderText("邮箱授权码(非登录密码)")
-        add_layout.addRow("授权码:", self.password_input)
+        add_layout.addRow("SMTP授权码:", self.password_input)
+
+        # IMAP授权码(可选,与SMTP授权码相同时可不填)
+        self.imap_password_input = QLineEdit()
+        self.imap_password_input.setEchoMode(QLineEdit.Password)
+        self.imap_password_input.setPlaceholderText("IMAP授权码(可选,与SMTP相同可不填)")
+        add_layout.addRow("IMAP授权码:", self.imap_password_input)
 
         # SMTP服务器
         smtp_layout = QHBoxLayout()
@@ -199,18 +205,20 @@ class AccountTab(QWidget):
         """添加邮箱账号"""
         email = self.email_input.text().strip()
         password = self.password_input.text().strip()
+        imap_password = self.imap_password_input.text().strip() or None  # 如果为空则使用None
         smtp_server = self.smtp_server_input.text().strip()
         smtp_port = self.smtp_port_input.value()
 
         if not email or not password:
-            QMessageBox.warning(self, "警告", "请填写邮箱地址和授权码")
+            QMessageBox.warning(self, "警告", "请填写邮箱地址和SMTP授权码")
             return
 
         # 添加账号
-        if self.config_manager.add_email_account(email, password, smtp_server, smtp_port):
+        if self.config_manager.add_email_account(email, password, smtp_server, smtp_port, imap_password):
             QMessageBox.information(self, "成功", f"账号 {email} 添加成功！")
             self.email_input.clear()
             self.password_input.clear()
+            self.imap_password_input.clear()
             self.load_accounts()
 
             # 通知其他标签页更新

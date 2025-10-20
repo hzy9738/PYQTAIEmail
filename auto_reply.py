@@ -35,16 +35,23 @@ class AutoReply:
         self.imap_server = imap_server
         self.imap_port = imap_port
         self.smtp_sender = smtp_sender
-        self.replied_emails = set()  # 记录已回复的邮件ID
+        self.replied_emails = set()  # 记录已��复的邮件ID
         self.is_running = False
         self.thread = None
+        # 更新docstring - password应为IMAP授权码
+        # IMAP连接时password需要使用IMAP授权码
 
     def connect_imap(self) -> Optional[imaplib.IMAP4_SSL]:
         """连接到IMAP服务器"""
         try:
             mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
             mail.login(self.email_address, self.password)
+            print(f"IMAP连接成功: {self.email_address}")
             return mail
+        except imaplib.IMAP4.error as e:
+            print(f"IMAP认证失败: {e}")
+            print(f"请检查是否使用了正确的IMAP授权码(非登录密码)")
+            return None
         except Exception as e:
             print(f"IMAP连接失败: {e}")
             return None

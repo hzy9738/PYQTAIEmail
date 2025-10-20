@@ -239,10 +239,10 @@ class AutoReplyTab(QWidget):
                 smtp_port=credentials["smtp_port"]
             )
 
-            # 创建自动回复实例
+            # 创建自动回复实例 - 使用IMAP授权码
             auto_reply = AutoReply(
                 email_address=credentials["email"],
-                password=credentials["password"],
+                password=credentials.get("imap_password", credentials["password"]),  # 使用IMAP授权码,如果不存在则使用SMTP授权码
                 imap_server=credentials["imap_server"],
                 imap_port=credentials["imap_port"],
                 smtp_sender=sender
