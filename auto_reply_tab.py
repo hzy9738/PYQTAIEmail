@@ -85,6 +85,22 @@ class AutoReplyTab(QWidget):
         # 控制按钮
         control_layout = QHBoxLayout()
 
+        self.test_imap_btn = QPushButton("测试IMAP连接")
+        self.test_imap_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f39c12;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #e67e22;
+            }
+        """)
+        self.test_imap_btn.clicked.connect(self.test_imap_connection)
+        control_layout.addWidget(self.test_imap_btn)
+
         self.save_btn = QPushButton("保存配置")
         self.save_btn.setStyleSheet("""
             QPushButton {
@@ -194,6 +210,48 @@ class AutoReplyTab(QWidget):
         config = self.config_manager.get_auto_reply_config()
         self.reply_content_input.setPlainText(config.get("reply_content", ""))
 
+    def test_imap_connection(self):
+        """测试IMAP连接"""
+        email = self.account_combo.currentText()
+        if not email:
+            QMessageBox.warning(self, "警告", "请先选择邮箱账号")
+            return
+
+        # 获取账号凭证
+        credentials = self.config_manager.get_account_credentials(email)
+        if not credentials:
+            QMessageBox.critical(self, "错误", "获取邮箱凭证失败")
+            return
+
+        self.main_window.update_status("正在测试IMAP连接...")
+        self.test_imap_btn.setEnabled(False)
+
+        try:
+            # 创建自动回复实例用于测试
+            auto_reply = AutoReply(
+                email_address=credentials["email"],
+                password=credentials.get("imap_password", credentials["password"]),
+                imap_server=credentials["imap_server"],
+                imap_port=credentials["imap_port"],
+                smtp_sender=None
+            )
+
+            # 测试连接
+            success, message = auto_reply.test_connection()
+
+            if success:
+                QMessageBox.information(self, "成功", "IMAP连接测试成功！\n" + message)
+                self.main_window.update_status("IMAP连接测试成功")
+            else:
+                QMessageBox.critical(self, "失败", "IMAP连接测试失败！\n" + message)
+                self.main_window.update_status("IMAP连接测试失败")
+
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"测试IMAP连接时出错:\n{str(e)}")
+            self.main_window.update_status("测试IMAP连接出错")
+        finally:
+            self.test_imap_btn.setEnabled(True)
+
     def save_config(self):
         """保存配置"""
         reply_content = self.reply_content_input.toPlainText().strip()
@@ -227,11 +285,28 @@ class AutoReplyTab(QWidget):
         # 获取账号凭证
         credentials = self.config_manager.get_account_credentials(email)
         if not credentials:
-            QMessageBox.critical(self, "错误", "���取邮箱凭证失败")
+            QMessageBox.critical(self, "错误", "获取邮箱凭证失败")
             return
 
         try:
-            # 创建邮件发送器
+            # 第一步:测试IMAP连接
+            self.main_window.update_status("正在验证IMAP连接...")
+
+            test_auto_reply = AutoReply(
+                email_address=credentials["email"],
+                password=credentials.get("imap_password", credentials["password"]),
+                imap_server=credentials["imap_server"],
+                imap_port=credentials["imap_port"],
+                smtp_sender=None
+            )
+
+            success, test_message = test_auto_reply.test_connection()
+            if not success:
+                QMessageBox.critical(self, "错误", f"IMAP连接失败,无法启动自动回复:\n{test_message}")
+                self.main_window.update_status("IMAP连接失败")
+                return
+
+            # 第二步:创建邮件发送器和自动回复实例
             sender = EmailSender(
                 email=credentials["email"],
                 password=credentials["password"],
@@ -253,7 +328,7 @@ class AutoReplyTab(QWidget):
 
             # 启动自动回复
             if self.auto_reply_manager.start_auto_reply(email, reply_content, check_interval):
-                QMessageBox.information(self, "成功", f"已为 {email} 启动自动回复")
+                QMessageBox.information(self, "成功", f"已为 {email} 启动自动回复\nIMAP连接已验证,服务正在运行")
 
                 # 更新UI状态
                 self.start_btn.setEnabled(False)

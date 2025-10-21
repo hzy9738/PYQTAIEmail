@@ -44,7 +44,7 @@ class AutoReply:
     def connect_imap(self) -> Optional[imaplib.IMAP4_SSL]:
         """连接到IMAP服务器"""
         try:
-            mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
+            mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port, timeout=10)
             mail.login(self.email_address, self.password)
             print(f"IMAP连接成功: {self.email_address}")
             return mail
@@ -55,6 +55,30 @@ class AutoReply:
         except Exception as e:
             print(f"IMAP连接失败: {e}")
             return None
+
+    def test_connection(self) -> tuple:
+        """测试IMAP连接
+
+        Returns:
+            (是否成功, 错误信息)
+        """
+        try:
+            mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port, timeout=10)
+            mail.login(self.email_address, self.password)
+            mail.logout()
+            return (True, "IMAP连接成功")
+        except imaplib.IMAP4.error as e:
+            error_msg = f"IMAP认证失败: {str(e)}\n请确保:\n1. 已开启IMAP服务\n2. 使用的是IMAP授权码(非登录密码)\n3. 授权码输入正确"
+            print(error_msg)
+            return (False, error_msg)
+        except TimeoutError:
+            error_msg = f"IMAP连接超时: 无法连接到{self.imap_server}:{self.imap_port}\n请检查网络连接和防火墙设置"
+            print(error_msg)
+            return (False, error_msg)
+        except Exception as e:
+            error_msg = f"IMAP连接失败: {str(e)}"
+            print(error_msg)
+            return (False, error_msg)
 
     def decode_email_subject(self, subject_header) -> str:
         """解码邮件主题"""
