@@ -10,7 +10,7 @@ import email
 from email.header import decode_header
 from email.mime.text import MIMEText
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import threading
 
@@ -112,8 +112,10 @@ class AutoReply:
             # 选择收件箱
             mail.select('INBOX')
 
-            # 搜索未读邮件
-            status, messages = mail.search(None, 'UNSEEN')
+            # 搜索最近7天内的所有邮件（不仅仅是未读邮件）
+            # 这样即使用户在其他客户端查看了邮件，也能自动回复
+            week_ago = (datetime.now() - timedelta(days=7)).strftime("%d-%b-%Y")
+            status, messages = mail.search(None, f'(SINCE {week_ago})')
 
             if status != 'OK':
                 return new_emails
