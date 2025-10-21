@@ -19,7 +19,7 @@ class AutoReply:
     """自动回复类"""
 
     def __init__(self, email_address: str, password: str, imap_server: str,
-                 imap_port: int, smtp_sender):
+                 imap_port: int, smtp_sender, log_callback=None):
         """
         初始化自动回复
 
@@ -29,31 +29,39 @@ class AutoReply:
             imap_server: IMAP服务器地址
             imap_port: IMAP服务器端口
             smtp_sender: 邮件发送器对象
+            log_callback: 日志回调函数（可选）
         """
         self.email_address = email_address
         self.password = password
         self.imap_server = imap_server
         self.imap_port = imap_port
         self.smtp_sender = smtp_sender
+        self.log_callback = log_callback
         self.replied_emails = set()  # 记录已��复的邮件ID
         self.is_running = False
         self.thread = None
         # 更新docstring - password应为IMAP授权码
         # IMAP连接时password需要使用IMAP授权码
 
+    def log(self, message):
+        """输出日志（支持回调到GUI）"""
+        print(message)  # 保留控制台输出
+        if self.log_callback:
+            self.log_callback(message)
+
     def connect_imap(self) -> Optional[imaplib.IMAP4_SSL]:
         """连接到IMAP服务器"""
         try:
             mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port, timeout=10)
             mail.login(self.email_address, self.password)
-            print(f"IMAP连接成功: {self.email_address}")
+            self.log(f"IMAP连接成功: {self.email_address}")
             return mail
         except imaplib.IMAP4.error as e:
-            print(f"IMAP认证失败: {e}")
-            print(f"请检查是否使用了正确的IMAP授权码(非登录密码)")
+            self.log(f"IMAP认证失败: {e}")
+            self.log(f"请检查是否使用了正确的IMAP授权码(非登录密码)")
             return None
         except Exception as e:
-            print(f"IMAP连接失败: {e}")
+            self.log(f"IMAP连接失败: {e}")
             return None
 
     def test_connection(self) -> tuple:
@@ -111,26 +119,26 @@ class AutoReply:
         try:
             # 选择收件箱
             status, data = mail.select('INBOX')
-            print(f"[调试] INBOX中共有 {data[0].decode()} 封邮件")
+            self.log(f"[调试] INBOX中共有 {data[0].decode()} 封邮件")
 
             # 搜索所有邮件，然后手动过滤最近的
             # 不使用SINCE命令，因为可能不兼容某些IMAP服务器
-            print("[调试] 正在搜索所有邮件...")
+            self.log("[调试] 正在搜索所有邮件...")
             status, messages = mail.search(None, 'ALL')
 
             if status != 'OK':
-                print(f"[调试] 搜索失败: {status}")
+                self.log(f"[调试] 搜索失败: {status}")
                 return new_emails
 
             # 获取邮件ID列表
             email_ids = messages[0].split()
             total_emails = len(email_ids)
-            print(f"[调试] 搜索到 {total_emails} 封邮件")
+            self.log(f"[调试] 搜索到 {total_emails} 封邮件")
 
             # 只处理最近的20封邮件（倒序）
             recent_email_ids = email_ids[-20:] if len(email_ids) > 20 else email_ids
             recent_email_ids = list(reversed(recent_email_ids))  # 从最新的开始
-            print(f"[调试] 将检查最近的 {len(recent_email_ids)} 封邮件")
+            self.log(f"[调试] 将检查最近的 {len(recent_email_ids)} 封邮件")
 
             checked_count = 0
             filtered_count = 0
@@ -163,19 +171,19 @@ class AutoReply:
                             'subject': subject,
                             'date': date_str
                         })
-                        print(f"[调试] 发现新邮件: {sender} - {subject[:30]}")
+                        self.log(f"[调试] 发现新邮件: {sender} - {subject[:30]}")
                     else:
                         filtered_count += 1
-                        print(f"[调试] 已回复过，跳过: {sender} - {subject[:30]}")
+                        self.log(f"[调试] 已回复过，跳过: {sender} - {subject[:30]}")
 
                 except Exception as e:
-                    print(f"[调试] 处理邮件失败: {e}")
+                    self.log(f"[调试] 处理邮件失败: {e}")
                     continue
 
-            print(f"[调试] 检查完成: 检查了{checked_count}封, 过滤了{filtered_count}封, 发现{len(new_emails)}封新邮件")
+            self.log(f"[调试] 检查完成: 检查了{checked_count}封, 过滤了{filtered_count}封, 发现{len(new_emails)}封新邮件")
 
         except Exception as e:
-            print(f"[错误] 检查新邮件失败: {e}")
+            self.log(f"[错误] 检查新邮件失败: {e}")
             import traceback
             traceback.print_exc()
 
@@ -195,40 +203,40 @@ class AutoReply:
             return len(result['success']) > 0
 
         except Exception as e:
-            print(f"发送自动回复失败: {e}")
+            self.log(f"发送自动回复失败: {e}")
             return False
 
     def auto_reply_loop(self, reply_content: str, check_interval: int = 60):
         """自动回复循环"""
-        print(f"="*50)
-        print(f"自动回复已启动")
-        print(f"检查间隔: {check_interval}秒")
-        print(f"回复内容: {reply_content[:50]}...")
-        print(f"="*50)
+        self.log(f"="*50)
+        self.log(f"自动回复已启动")
+        self.log(f"检查间隔: {check_interval}秒")
+        self.log(f"回复内容: {reply_content[:50]}...")
+        self.log(f"="*50)
 
         loop_count = 0
 
         while self.is_running:
             try:
                 loop_count += 1
-                print(f"\n[循环 #{loop_count}] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                print(f"[循环 #{loop_count}] 正在连接IMAP服务器...")
+                self.log(f"\n[循环 #{loop_count}] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                self.log(f"[循环 #{loop_count}] 正在连接IMAP服务器...")
 
                 mail = self.connect_imap()
                 if not mail:
-                    print(f"[循环 #{loop_count}] IMAP连接失败,等待重试...")
+                    self.log(f"[循环 #{loop_count}] IMAP连接失败,等待重试...")
                     time.sleep(check_interval)
                     continue
 
-                print(f"[循环 #{loop_count}] IMAP连接成功，开始检查新邮件...")
+                self.log(f"[循环 #{loop_count}] IMAP连接成功，开始检查新邮件...")
 
                 # 检查新邮件
                 new_emails = self.check_new_emails(mail)
 
                 if len(new_emails) == 0:
-                    print(f"[循环 #{loop_count}] 没有发现需要回复的新邮件")
+                    self.log(f"[循环 #{loop_count}] 没有发现需要回复的新邮件")
                 else:
-                    print(f"[循环 #{loop_count}] 发现 {len(new_emails)} 封需要回复的新邮件")
+                    self.log(f"[循环 #{loop_count}] 发现 {len(new_emails)} 封需要回复的新邮件")
 
                 # 处理新邮件
                 for i, email_info in enumerate(new_emails, 1):
@@ -236,41 +244,41 @@ class AutoReply:
                     subject = email_info['subject']
                     message_id = email_info['message_id']
 
-                    print(f"[循环 #{loop_count}] [{i}/{len(new_emails)}] 处理邮件: {sender} - {subject}")
+                    self.log(f"[循环 #{loop_count}] [{i}/{len(new_emails)}] 处理邮件: {sender} - {subject}")
 
                     # 发送自动回复
-                    print(f"[循环 #{loop_count}] [{i}/{len(new_emails)}] 正在发送自动回复...")
+                    self.log(f"[循环 #{loop_count}] [{i}/{len(new_emails)}] 正在发送自动回复...")
                     if self.send_auto_reply(sender, subject, reply_content):
-                        print(f"[循环 #{loop_count}] [{i}/{len(new_emails)}] ✓ 自动回复成功: {sender}")
+                        self.log(f"[循环 #{loop_count}] [{i}/{len(new_emails)}] ✓ 自动回复成功: {sender}")
                         self.replied_emails.add(message_id)
                     else:
-                        print(f"[循环 #{loop_count}] [{i}/{len(new_emails)}] ✗ 自动回复失败: {sender}")
+                        self.log(f"[循环 #{loop_count}] [{i}/{len(new_emails)}] ✗ 自动回复失败: {sender}")
 
                 mail.logout()
-                print(f"[循环 #{loop_count}] IMAP连接已关闭")
-                print(f"[循环 #{loop_count}] 等待 {check_interval} 秒后进行下一次检查...")
+                self.log(f"[循环 #{loop_count}] IMAP连接已关闭")
+                self.log(f"[循环 #{loop_count}] 等待 {check_interval} 秒后进行下一次检查...")
 
             except Exception as e:
-                print(f"[循环 #{loop_count}] 错误: {e}")
+                self.log(f"[循环 #{loop_count}] 错误: {e}")
                 import traceback
                 traceback.print_exc()
 
             # 等待下一次检查
             time.sleep(check_interval)
 
-        print("\n" + "="*50)
-        print("自动回复已停止")
-        print("="*50)
+        self.log("\n" + "="*50)
+        self.log("自动回复已停止")
+        self.log("="*50)
 
     def start(self, reply_content: str, check_interval: int = 60):
         """启动自动回复"""
         if self.is_running:
-            print("自动回复已在运行中")
+            self.log("自动回复已在运行中")
             return
 
         # 清空已回复邮件记录，确保每次启动都是全新状态
         self.replied_emails.clear()
-        print(f"已清空之前的回复记录，当前replied_emails有 {len(self.replied_emails)} 条记录")
+        self.log(f"已清空之前的回复记录，当前replied_emails有 {len(self.replied_emails)} 条记录")
 
         self.is_running = True
         self.thread = threading.Thread(
@@ -279,18 +287,18 @@ class AutoReply:
             daemon=True
         )
         self.thread.start()
-        print("自动回复线程已启动")
+        self.log("自动回复线程已启动")
 
     def stop(self):
         """停止自动回复"""
         if not self.is_running:
-            print("自动回复未在运行")
+            self.log("自动回复未在运行")
             return
 
         self.is_running = False
         if self.thread:
             self.thread.join(timeout=5)
-        print("自动回复已停止")
+        self.log("自动回复已停止")
 
     def is_active(self) -> bool:
         """检查自动回复是否激活"""

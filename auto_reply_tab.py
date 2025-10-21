@@ -187,6 +187,61 @@ class AutoReplyTab(QWidget):
         status_group.setLayout(status_layout)
         layout.addWidget(status_group)
 
+        # 日志显示区域
+        log_group = QGroupBox("运行日志")
+        log_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #27ae60;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+        """)
+        log_layout = QVBoxLayout()
+
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        self.log_text.setMinimumHeight(200)
+        self.log_text.setMaximumHeight(300)
+        self.log_text.setStyleSheet("""
+            QTextEdit {
+                background-color: #2c3e50;
+                color: #ecf0f1;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 12px;
+                border: 1px solid #34495e;
+                padding: 5px;
+            }
+        """)
+        self.log_text.setPlaceholderText("启动自动回复后，日志信息将在此显示...")
+
+        # 日志控制按钮
+        log_control_layout = QHBoxLayout()
+
+        clear_log_btn = QPushButton("清空日志")
+        clear_log_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #95a5a6;
+                color: white;
+                padding: 5px 15px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #7f8c8d;
+            }
+        """)
+        clear_log_btn.clicked.connect(self.clear_log)
+        log_control_layout.addWidget(clear_log_btn)
+
+        log_control_layout.addStretch()
+
+        log_layout.addWidget(self.log_text)
+        log_layout.addLayout(log_control_layout)
+
+        log_group.setLayout(log_layout)
+        layout.addWidget(log_group)
+
         # 加载账号
         self.refresh_accounts()
 
@@ -320,8 +375,15 @@ class AutoReplyTab(QWidget):
                 password=credentials.get("imap_password", credentials["password"]),  # 使用IMAP授权码,如果不存在则使用SMTP授权码
                 imap_server=credentials["imap_server"],
                 imap_port=credentials["imap_port"],
-                smtp_sender=sender
+                smtp_sender=sender,
+                log_callback=self.append_log  # 传递日志回调函数
             )
+
+            # 清空日志显示
+            self.clear_log()
+            self.append_log("="*60)
+            self.append_log(f"准备启动自动回复服务: {email}")
+            self.append_log("="*60)
 
             # 添加到管理器
             self.auto_reply_manager.add_auto_reply(email, auto_reply)
@@ -407,3 +469,19 @@ class AutoReplyTab(QWidget):
 
             # 回复内容预览
             self.status_table.setItem(i, 2, QTableWidgetItem(reply_content_preview))
+
+    def clear_log(self):
+        """清空日志"""
+        self.log_text.clear()
+
+    def append_log(self, message):
+        """添加日志消息（线程安全）"""
+        from PyQt5.QtCore import QMetaObject, Q_ARG
+        # 使用invokeMethod确保在主线程中更新UI
+        QMetaObject.invokeMethod(self.log_text, "append",
+                                 Qt.QueuedConnection,
+                                 Q_ARG(str, message))
+        # 自动滚动到底部
+        QMetaObject.invokeMethod(self.log_text.verticalScrollBar(), "setValue",
+                                 Qt.QueuedConnection,
+                                 Q_ARG(int, self.log_text.verticalScrollBar().maximum()))
